@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Language Fuel Planner</title>
+    <style>
+        body { font-family: 'Tahoma', 'Arial', sans-serif; background-color: #f4f7f6; display: flex; justify-content: center; padding: 20px; }
+        .card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 550px; position: relative; }
+        
+        /* ส่วนเลือกภาษา */
+        .lang-bar { display: flex; justify-content: flex-end; gap: 5px; margin-bottom: 20px; flex-wrap: wrap; }
+        .lang-btn { padding: 5px 10px; border: 1px solid #ddd; border-radius: 5px; cursor: pointer; font-size: 12px; background: #fff; }
+        .lang-btn.active { background: #27ae60; color: white; border-color: #27ae60; }
+
+        h2 { color: #2c3e50; text-align: center; margin-top: 0; border-bottom: 2px solid #27ae60; padding-bottom: 10px; }
+        .step-title { font-weight: bold; color: #2ecc71; margin-top: 20px; margin-bottom: 10px; display: block; }
+        
+        .grid-box { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .item-btn { border: 2px solid #eee; border-radius: 12px; padding: 15px 5px; text-align: center; cursor: pointer; transition: 0.3s; font-size: 14px; }
+        .item-btn.active { border-color: #27ae60; background-color: #e8f6ef; font-weight: bold; }
+
+        .model-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; display: none; }
+        
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        .checkbox-group { display: flex; align-items: center; margin: 15px 0; font-size: 14px; }
+        
+        button#calcBtn { width: 100%; background-color: #27ae60; color: white; border: none; padding: 18px; border-radius: 10px; font-size: 18px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        
+        #result { margin-top: 25px; padding: 20px; border-radius: 12px; background-color: #d1f2eb; border: 2px solid #1abc9c; display: none; text-align: center; }
+        .highlight { font-size: 28px; font-weight: bold; color: #16a085; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <div class="lang-bar">
+        <div class="lang-btn active" onclick="changeLang('th', this)">TH</div>
+        <div class="lang-btn" onclick="changeLang('en', this)">EN</div>
+        <div class="lang-btn" onclick="changeLang('zh', this)">ZH</div>
+        <div class="lang-btn" onclick="changeLang('lo', this)">LO (ລາວ)</div>
+        <div class="lang-btn" onclick="changeLang('km', this)">KM (ខ្មែរ)</div>
+    </div>
+
+    <h2 id="txt-title">เครื่องคำนวณน้ำมัน</h2>
+
+    <span class="step-title" id="txt-step1">Step 1: เลือกประเภทรถ</span>
+    <div class="grid-box">
+        <div class="item-btn" id="type-car" onclick="filterModels('car', this)">🚗 <span id="txt-car">รถยนต์</span></div>
+        <div class="item-btn" id="type-moto" onclick="filterModels('moto', this)">🛵 <span id="txt-moto">มอเตอร์ไซค์</span></div>
+        <div class="item-btn" id="type-agri" onclick="filterModels('agri', this)">🚜 <span id="txt-agri">รถเกษตร</span></div>
+    </div>
+
+    <div id="modelSection" style="display:none;">
+        <span class="step-title" id="txt-step2">Step 2: เลือกรุ่นรถ</span>
+        <div class="model-grid" id="modelList"></div>
+    </div>
+
+    <div id="inputSection" style="display:none;">
+        <span class="step-title" id="txt-step3">Step 3: ข้อมูลการเดินทาง</span>
+        <label id="txt-fuelPrice">ราคาน้ำมัน (บาท/ลิตร):</label>
+        <input type="number" id="fuelPrice" step="0.01">
+        
+        <label id="txt-dist">ระยะทาง (กิโลเมตร):</label>
+        <input type="number" id="distance">
+
+        <div class="checkbox-group">
+            <input type="checkbox" id="heavyLoad">
+            <label for="heavyLoad" id="txt-heavy">บรรทุกของหนัก (+20%)</label>
+        </div>
+
+        <button id="calcBtn" onclick="calculate()">คำนวณ</button>
+    </div>
+
+    <div id="result">
+        <div id="resName" style="font-weight:bold;"></div>
+        <div id="txt-resLiters">ปริมาณที่ใช้: <span id="outLiters" class="highlight">0</span> ลิตร</div>
+        <div id="txt-resMoney">งบประมาณ: <span id="outMoney" class="highlight">0</span> บาท</div>
+    </div>
+</div>
+
+<script>
+    // ฐานข้อมูลภาษา
+    const translations = {
+        'th': { title: "เครื่องคำนวณน้ำมัน", s1: "Step 1: เลือกประเภทรถ", s2: "Step 2: เลือกรุ่นรถ", s3: "Step 3: ข้อมูลการเดินทาง", car: "รถยนต์", moto: "มอเตอร์ไซค์", agri: "รถเกษตร", price: "ราคาน้ำมัน (บาท/ลิตร):", dist: "ระยะทาง (กม.):", heavy: "บรรทุกของหนัก (+20%)", btn: "คำนวณเลย", resL: "ปริมาณที่ใช้:", resM: "งบประมาณ:" },
+        'en': { title: "Fuel Calculator", s1: "Step 1: Vehicle Type", s2: "Step 2: Select Model", s3: "Step 3: Trip Info", car: "Car", moto: "Motorcycle", agri: "Agri-Vehicle", price: "Fuel Price (Baht/L):", dist: "Distance (km):", heavy: "Heavy Load (+20%)", btn: "Calculate", resL: "Fuel Used:", resM: "Budget:" },
+        'zh': { title: "燃油计算器", s1: "步骤 1: 车辆类型", s2: "步骤 2: 选择型号", s3: "步骤 3: 行程信息", car: "汽车", moto: "摩托车", agri: "农用车", price: "油价 (泰铢/升):", dist: "距离 (公里):", heavy: "重载 (+20%)", btn: "开始计算", resL: "用油量:", resM: "总费用:" },
+        'lo': { title: "ເຄື່ອງຄິດໄລ່ນ້ຳມັນ", s1: "ຂັ້ນຕອນ 1: ເລືອກປະເພດລົດ", s2: "ຂັ້ນຕອນ 2: ເລືອກລຸ້ນລົດ", s3: "ຂັ້ນຕອນ 3: ຂໍ້ມູນການເດີນທາງ", car: "ລົດยนต์", moto: "ລົດຈັກ", agri: "ລົດກະສິກຳ", price: "ລາຄານ້ຳມັນ (ບາດ/ລິດ):", dist: "ໄລຍະທາງ (ກມ):", heavy: "ບັນທຸກໜັກ (+20%)", btn: "ຄິດໄລ່", resL: "ປະລິມານທີ່ໃຊ້:", resM: "ງົບປະມານ:" },
+        'km': { title: "ម៉ាស៊ីនគិតលេខប្រេង", s1: "ជំហានទី ១: ជ្រើសរើសប្រភេទឡាន", s2: "ជំហានទី ២: ជ្រើសរើសម៉ូដែល", s3: "ជំហានទី ៣: ព័ត៌មានធ្វើដំណើរ", car: "ឡាន", moto: "ម៉ូតូ", agri: "ឡានកសិកម្ម", price: "តម្លៃប្រេង (បាត/លីត្រ):", dist: "ចម្ងាយ (គីឡូម៉ែត្រ):", heavy: "ដឹកធ្ងន់ (+20%)", btn: "គណនា", resL: "បរិមាណប្រើប្រាស់:", resM: "ថវិកា:" }
+    };
+
+    const vehicleData = {
+        'car': [{ name: "Toyota Revo", kml: 12 }, { name: "Honda City", kml: 23.8 }, { name: "Isuzu D-Max", kml: 13.5 }],
+        'moto': [{ name: "Honda Wave", kml: 65 }, { name: "Honda PCX", kml: 48 }],
+        'agri': [{ name: "รถไถ (Tractor)", kml: 6 }, { name: "ซาเล้ง (Saleng)", kml: 30 }]
+    };
+
+    let selectedKml = 0;
+    let selectedName = "";
+
+    function changeLang(lang, btn) {
+        document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const t = translations[lang];
+        document.getElementById('txt-title').innerText = t.title;
+        document.getElementById('txt-step1').innerText = t.s1;
+        document.getElementById('txt-step2').innerText = t.s2;
+        document.getElementById('txt-step3').innerText = t.s3;
+        document.getElementById('txt-car').innerText = t.car;
+        document.getElementById('txt-moto').innerText = t.moto;
+        document.getElementById('txt-agri').innerText = t.agri;
+        document.getElementById('txt-fuelPrice').innerText = t.price;
+        document.getElementById('txt-dist').innerText = t.dist;
+        document.getElementById('txt-heavy').innerText = t.heavy;
+        document.getElementById('calcBtn').innerText = t.btn;
+        document.getElementById('txt-resLiters').innerHTML = t.resL + ' <span id="outLiters" class="highlight">0</span> ' + (lang === 'en' ? 'L' : 'ลิตร');
+        document.getElementById('txt-resMoney').innerHTML = t.resM + ' <span id="outMoney" class="highlight">0</span> ' + (lang === 'en' ? 'Baht' : 'บาท');
+    }
+
+    function filterModels(type, btn) {
+        document.querySelectorAll('.item-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const list = document.getElementById('modelList');
+        list.innerHTML = "";
+        vehicleData[type].forEach(item => {
+            let div = document.createElement('div');
+            div.style = "border:1px solid #ddd; padding:10px; border-radius:8px; text-align:center; cursor:pointer;";
+            div.innerText = item.name;
+            div.onclick = function() {
+                document.querySelectorAll('#modelList div').forEach(d => d.style.background = "none");
+                div.style.background = "#e8f6ef";
+                selectedKml = item.kml;
+                selectedName = item.name;
+                document.getElementById('inputSection').style.display = 'block';
+            };
+            list.appendChild(div);
+        });
+        document.getElementById('modelSection').style.display = 'block';
+        list.style.display = 'grid';
+    }
+
+    function calculate() {
+        let price = document.getElementById('fuelPrice').value;
+        let dist = document.getElementById('distance').value;
+        if(!price || !dist) return alert("Please fill all info");
+        let kml = document.getElementById('heavyLoad').checked ? selectedKml * 0.8 : selectedKml;
+        let liters = dist / kml;
+        let money = liters * price;
+        document.getElementById('result').style.display = 'block';
+        document.getElementById('resName').innerText = selectedName;
+        document.getElementById('outLiters').innerText = liters.toFixed(2);
+        document.getElementById('outMoney').innerText = money.toLocaleString();
+    }
+</script>
+</body>
+</html>
